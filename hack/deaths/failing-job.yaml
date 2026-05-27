@@ -1,0 +1,17 @@
+# A Job that always fails with backoffLimit 0, so it reaches JobFailed fast.
+# Expect an Obituary with causeOfDeath=JobFailed.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: koroner-badjob
+  labels:
+    koroner.pez.sh/demo: "true"
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: doomed
+          image: busybox
+          command: ["sh", "-c", "echo 'doing important work'; sleep 2; echo 'it failed' >&2; exit 1"]

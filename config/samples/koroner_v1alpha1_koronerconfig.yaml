@@ -1,0 +1,19 @@
+apiVersion: koroner.pez.sh/v1alpha1
+kind: KoronerConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: koroner
+    app.kubernetes.io/managed-by: kustomize
+  name: default
+spec:
+  watch:
+    podCrashes: true
+    jobFailures: true
+    rolloutFailures: false
+    evictions: false
+  restartThreshold: 3
+  logTailLines: 200
+  obituaryRetention: 168h
+  prometheus:
+    enabled: false
+    # url: http://prometheus-operated.monitoring:9090

@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- koroner_v1alpha1_obituary.yaml
+- koroner_v1alpha1_koronerconfig.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
