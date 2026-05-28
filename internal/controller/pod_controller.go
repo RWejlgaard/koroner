@@ -46,6 +46,7 @@ type PodReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=replicasets;deployments;statefulsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs;cronjobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=koroner.pez.sh,resources=koronerconfigs,verbs=get;list;watch
@@ -283,7 +284,8 @@ func (r *PodReconciler) buildStatus(
 		}
 	}
 
-	runNarrator(ctx, r.Narrator, verdict, &status)
+	narrator := resolveNarrator(ctx, r.Client, cfg.Narrator, pod.Namespace, r.Narrator)
+	runNarrator(ctx, narrator, verdict, &status)
 	return status
 }
 

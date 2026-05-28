@@ -93,6 +93,50 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+              narrator:
+                description: narrator configures optional LLM-backed narrative generation.
+                properties:
+                  apiKeySecretRef:
+                    description: apiKeySecretRef points to the Secret holding the
+                      provider API key.
+                    properties:
+                      key:
+                        description: |-
+                          key inside the Secret whose value is the API key. Defaults to
+                          "ANTHROPIC_API_KEY" or "OPENAI_API_KEY" depending on the provider.
+                        type: string
+                      name:
+                        description: name of the Secret holding the API key.
+                        type: string
+                      namespace:
+                        description: namespace of the Secret. Defaults to the namespace
+                          of the dead workload.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  baseURL:
+                    description: |-
+                      baseURL optionally overrides the provider's HTTPS endpoint. Useful for
+                      proxies and self-hosted gateways.
+                    type: string
+                  enabled:
+                    description: enabled turns LLM narrative generation on. Defaults
+                      to false.
+                    type: boolean
+                  model:
+                    description: |-
+                      model is the model identifier passed to the provider, e.g.
+                      "claude-opus-4-7" or "gpt-4o-mini".
+                    type: string
+                  provider:
+                    description: provider selects the LLM backend. One of "anthropic",
+                      "openai".
+                    enum:
+                    - anthropic
+                    - openai
+                    type: string
+                type: object
               obituaryRetention:
                 description: |-
                   obituaryRetention is how long obituaries are kept before reaping.

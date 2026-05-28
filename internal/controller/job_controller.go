@@ -97,7 +97,8 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		EventTimeline: events,
 		Owners:        owners,
 	}
-	runNarrator(ctx, r.Narrator, verdict, &status)
+	narrator := resolveNarrator(ctx, r.Client, cfg.Narrator, job.Namespace, r.Narrator)
+	runNarrator(ctx, narrator, verdict, &status)
 
 	_, _, err = upsertObituary(ctx, r.Client, recordedDeath{
 		subject:  subject,

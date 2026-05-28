@@ -57,6 +57,51 @@ type PrometheusPolicy struct {
 	Queries map[string]string `json:"queries,omitempty"`
 }
 
+// NarratorProvider identifies an external LLM backend.
+// +kubebuilder:validation:Enum=anthropic;openai
+type NarratorProvider string
+
+const (
+	NarratorProviderAnthropic NarratorProvider = "anthropic"
+	NarratorProviderOpenAI    NarratorProvider = "openai"
+)
+
+// SecretKeyRef points at a single key inside a Kubernetes Secret.
+type SecretKeyRef struct {
+	// name of the Secret holding the API key.
+	// +required
+	Name string `json:"name"`
+	// key inside the Secret whose value is the API key. Defaults to
+	// "ANTHROPIC_API_KEY" or "OPENAI_API_KEY" depending on the provider.
+	// +optional
+	Key string `json:"key,omitempty"`
+	// namespace of the Secret. Defaults to the namespace of the dead workload.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// NarratorPolicy configures the optional LLM-backed narrative generation.
+// When disabled the Narrator field on Obituary stays empty.
+type NarratorPolicy struct {
+	// enabled turns LLM narrative generation on. Defaults to false.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+	// provider selects the LLM backend. One of "anthropic", "openai".
+	// +optional
+	Provider NarratorProvider `json:"provider,omitempty"`
+	// model is the model identifier passed to the provider, e.g.
+	// "claude-opus-4-7" or "gpt-4o-mini".
+	// +optional
+	Model string `json:"model,omitempty"`
+	// apiKeySecretRef points to the Secret holding the provider API key.
+	// +optional
+	APIKeySecretRef *SecretKeyRef `json:"apiKeySecretRef,omitempty"`
+	// baseURL optionally overrides the provider's HTTPS endpoint. Useful for
+	// proxies and self-hosted gateways.
+	// +optional
+	BaseURL string `json:"baseURL,omitempty"`
+}
+
 // KoronerConfigSpec is the runtime policy for Koroner. A config named
 // "default" in the operator's namespace acts as the cluster-wide fallback;
 // per-namespace configs override it for their namespace.
@@ -89,6 +134,10 @@ type KoronerConfigSpec struct {
 	// prometheus configures optional metric evidence.
 	// +optional
 	Prometheus PrometheusPolicy `json:"prometheus,omitempty"`
+
+	// narrator configures optional LLM-backed narrative generation.
+	// +optional
+	Narrator NarratorPolicy `json:"narrator,omitempty"`
 }
 
 // KoronerConfigStatus defines the observed state of KoronerConfig.

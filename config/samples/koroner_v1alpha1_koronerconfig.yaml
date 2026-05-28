@@ -17,3 +17,12 @@ spec:
   prometheus:
     enabled: false
     # url: http://prometheus-operated.monitoring:9090
+  narrator:
+    enabled: false
+    # provider: anthropic            # or "openai"
+    # model: claude-opus-4-7         # or e.g. "gpt-4o-mini"
+    # apiKeySecretRef:
+    #   name: koroner-llm
+    #   key: ANTHROPIC_API_KEY       # defaults to ANTHROPIC_API_KEY / OPENAI_API_KEY
+    #   namespace: koroner-system    # defaults to the dead workload's namespace
+    # baseURL: https://api.anthropic.com

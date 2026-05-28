@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
 	"github.com/RWejlgaard/koroner/internal/forensics"
@@ -210,5 +211,68 @@ func runNarrator(ctx context.Context, n forensics.Narrator, v forensics.Verdict,
 	}
 	if text, err := n.Narrate(ctx, v, status); err == nil {
 		status.Narrative = text
+	} else {
+		logf.FromContext(ctx).V(1).Info("narrator failed", "error", err.Error())
 	}
+}
+
+// resolveNarrator returns the narrator for one obituary write. If the policy
+// is disabled or its secret cannot be read, the fallback (typically a
+// NoopNarrator) is used so a missing/misconfigured key never blocks recording
+// the death itself.
+func resolveNarrator(
+	ctx context.Context,
+	c client.Client,
+	policy koronerv1alpha1.NarratorPolicy,
+	subjectNamespace string,
+	fallback forensics.Narrator,
+) forensics.Narrator {
+	log := logf.FromContext(ctx)
+	if !policy.Enabled {
+		return fallback
+	}
+	if policy.Provider == "" {
+		log.V(1).Info("narrator enabled without provider; falling back")
+		return fallback
+	}
+	if policy.APIKeySecretRef == nil || policy.APIKeySecretRef.Name == "" {
+		log.V(1).Info("narrator enabled without apiKeySecretRef; falling back")
+		return fallback
+	}
+	ref := policy.APIKeySecretRef
+	ns := ref.Namespace
+	if ns == "" {
+		ns = subjectNamespace
+	}
+	key := ref.Key
+	if key == "" {
+		key = forensics.DefaultSecretKey(policy.Provider)
+	}
+	if key == "" {
+		log.V(1).Info("narrator: no secret key resolvable for provider", "provider", policy.Provider)
+		return fallback
+	}
+
+	var secret corev1.Secret
+	if err := c.Get(ctx, client.ObjectKey{Namespace: ns, Name: ref.Name}, &secret); err != nil {
+		log.V(1).Info("narrator: cannot read API key secret", "secret", ns+"/"+ref.Name, "error", err.Error())
+		return fallback
+	}
+	apiKey := strings.TrimSpace(string(secret.Data[key]))
+	if apiKey == "" {
+		log.V(1).Info("narrator: secret key empty", "secret", ns+"/"+ref.Name, "key", key)
+		return fallback
+	}
+
+	n, err := forensics.NewLLMNarrator(forensics.LLMConfig{
+		Provider: policy.Provider,
+		Model:    policy.Model,
+		APIKey:   apiKey,
+		BaseURL:  policy.BaseURL,
+	})
+	if err != nil {
+		log.V(1).Info("narrator: build failed", "error", err.Error())
+		return fallback
+	}
+	return n
 }
