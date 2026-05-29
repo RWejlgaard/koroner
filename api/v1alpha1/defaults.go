@@ -29,7 +29,26 @@ const (
 	DefaultRestartThreshold  int32         = 3
 	DefaultLogTailLines      int32         = 200
 	DefaultObituaryRetention time.Duration = 7 * 24 * time.Hour
+
+	// DefaultSelfHealMinOccurrences requires repeated deaths before acting.
+	DefaultSelfHealMinOccurrences int32 = 3
+	// DefaultSelfHealMaxHealsPerHour caps actions per namespace per hour.
+	DefaultSelfHealMaxHealsPerHour int32 = 5
+	// DefaultSelfHealMemoryFactor is the multiplier applied to memory limits
+	// when a BumpMemory action fires.
+	DefaultSelfHealMemoryFactor = "1.5"
 )
+
+// DefaultSelfHealActions is the complete set of remediations available when
+// SelfHealPolicy.Actions is left empty.
+func DefaultSelfHealActions() []SelfHealAction {
+	return []SelfHealAction{
+		SelfHealDeletePod,
+		SelfHealRestartWorkload,
+		SelfHealBumpMemory,
+		SelfHealRollbackDeployment,
+	}
+}
 
 // DefaultKoronerConfigSpec returns the policy used when no KoronerConfig exists.
 func DefaultKoronerConfigSpec() KoronerConfigSpec {
@@ -53,6 +72,36 @@ func (s *KoronerConfigSpec) WithDefaults() KoronerConfigSpec {
 	}
 	if out.ObituaryRetention == nil {
 		out.ObituaryRetention = &metav1.Duration{Duration: DefaultObituaryRetention}
+	}
+	out.SelfHeal = out.SelfHeal.withDefaults()
+	return out
+}
+
+// withDefaults returns a copy of the SelfHealPolicy with all unset fields
+// filled in. Sensible-defaults policy: DryRun on, conservative occurrence
+// and rate gates, all actions allowed.
+func (p SelfHealPolicy) withDefaults() SelfHealPolicy {
+	out := p
+	if out.DryRun == nil {
+		out.DryRun = orTrue(nil)
+	}
+	if out.RequireHighConfidence == nil {
+		out.RequireHighConfidence = orTrue(nil)
+	}
+	if out.MinOccurrences == nil {
+		v := DefaultSelfHealMinOccurrences
+		out.MinOccurrences = &v
+	}
+	if out.MaxHealsPerHour == nil {
+		v := DefaultSelfHealMaxHealsPerHour
+		out.MaxHealsPerHour = &v
+	}
+	if len(out.Actions) == 0 {
+		out.Actions = DefaultSelfHealActions()
+	}
+	if out.MemoryFactor == nil {
+		v := DefaultSelfHealMemoryFactor
+		out.MemoryFactor = &v
 	}
 	return out
 }

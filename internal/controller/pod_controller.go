@@ -31,6 +31,7 @@ import (
 
 	koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
 	"github.com/RWejlgaard/koroner/internal/forensics"
+	"github.com/RWejlgaard/koroner/internal/selfheal"
 )
 
 // PodReconciler investigates pod deaths and records Obituaries.
@@ -39,15 +40,17 @@ type PodReconciler struct {
 	Scheme            *runtime.Scheme
 	Collector         *forensics.Collector
 	Narrator          forensics.Narrator
+	SelfHeal          *selfheal.Engine
 	OperatorNamespace string
 }
 
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=pods/log,verbs=get
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=apps,resources=replicasets;deployments;statefulsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets;daemonsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs;cronjobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=koroner.pez.sh,resources=koronerconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=koroner.pez.sh,resources=obituaries,verbs=get;list;watch;create;update;patch
@@ -115,7 +118,29 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		now:      metav1.Now(),
 		status:   status,
 	})
-	return ctrl.Result{}, err
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	r.tryHeal(ctx, subject, key)
+	return ctrl.Result{}, nil
+}
+
+// tryHeal fetches the persisted Obituary by its deterministic name and asks
+// the engine whether to act. We re-read instead of using the in-memory status
+// so the engine sees the authoritative occurrence count (the upsert may have
+// already incremented it).
+func (r *PodReconciler) tryHeal(ctx context.Context, subject koronerv1alpha1.Subject, key string) {
+	if r.SelfHeal == nil {
+		return
+	}
+	name := obituaryName(subject.Name, key)
+	var obit koronerv1alpha1.Obituary
+	if err := r.Get(ctx, client.ObjectKey{Namespace: subject.Namespace, Name: name}, &obit); err != nil {
+		return
+	}
+	cfg := resolveConfig(ctx, r.Client, subject.Namespace, r.OperatorNamespace)
+	r.SelfHeal.MaybeHeal(ctx, &obit, cfg)
 }
 
 // workloadSubject identifies the entity an obituary is grouped under: the

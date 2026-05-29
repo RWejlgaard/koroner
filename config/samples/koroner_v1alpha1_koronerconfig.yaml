@@ -26,3 +26,28 @@ spec:
     #   key: ANTHROPIC_API_KEY       # defaults to ANTHROPIC_API_KEY / OPENAI_API_KEY
     #   namespace: koroner-system    # defaults to the dead workload's namespace
     # baseURL: https://api.anthropic.com
+  selfHeal:
+    enabled: false                   # off by default; flip to true to opt in
+    dryRun: true                     # when enabled, log actions only (default)
+    minOccurrences: 3                # require N repeated deaths before acting
+    requireHighConfidence: true      # only act on High-confidence verdicts
+    maxHealsPerHour: 5               # per-namespace rolling cap
+    # actions defaults to all four; trim to restrict
+    actions:
+      - DeletePod
+      - RestartWorkload
+      - BumpMemory
+      - RollbackDeployment
+    memoryFactor: "1.5"              # BumpMemory multiplier
+    # memoryMaxLimit: "8Gi"          # optional upper bound on BumpMemory
+    # namespaceSelector:             # optional; further narrows from spec.namespaceSelector
+    #   matchLabels:
+    #     selfheal: "true"
+    llm:
+      enabled: false                 # when on, LLM picks from `actions` if no rule matches
+      # provider: anthropic
+      # model: claude-opus-4-7
+      # apiKeySecretRef:
+      #   name: koroner-llm
+      #   key: ANTHROPIC_API_KEY
+      # baseURL: https://api.anthropic.com

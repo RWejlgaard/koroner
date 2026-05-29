@@ -1,0 +1,40 @@
+# A Deployment whose pod exits non-zero immediately and crash-loops. Expect
+# an Obituary with causeOfDeath=ApplicationError, then RepeatedCrash once
+# CrashLoopBackOff sets in.
+#
+# Why a Deployment and not a bare Pod? Self-heal acts on workload templates:
+#
+#   - RestartWorkload patches the kubectl.kubernetes.io/restartedAt annotation
+#     on the pod template; only meaningful on a controller-owned workload.
+#   - RollbackDeployment needs a prior ReplicaSet to copy the template back
+#     from. A freshly-applied broken Deployment has no history, so the very
+#     first rollback attempt records HealFailed("no prior ReplicaSet ...").
+#
+# To exercise a *successful* rollback end-to-end, demo it in two steps:
+#
+#   1. Apply a healthy Deployment first (e.g. swap the failing command for
+#      `["sleep", "3600"]`). Wait for it to roll out.
+#   2. `kubectl apply` this file. With self-heal enabled and dryRun=false,
+#      after MinOccurrences crashes the rollback will copy the prior healthy
+#      template back and the pod recovers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koroner-crashloop
+  labels:
+    koroner.pez.sh/demo: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: koroner-crashloop
+  template:
+    metadata:
+      labels:
+        app: koroner-crashloop
+        koroner.pez.sh/demo: "true"
+    spec:
+      containers:
+        - name: faily
+          image: busybox
+          command: ["sh", "-c", "echo 'starting up'; sleep 2; echo 'fatal: kaboom' >&2; exit 1"]

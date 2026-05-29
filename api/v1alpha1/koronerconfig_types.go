@@ -102,6 +102,104 @@ type NarratorPolicy struct {
 	BaseURL string `json:"baseURL,omitempty"`
 }
 
+// SelfHealAction names a remediation Koroner is allowed to perform.
+// +kubebuilder:validation:Enum=DeletePod;RestartWorkload;BumpMemory;RollbackDeployment
+type SelfHealAction string
+
+const (
+	// SelfHealDeletePod force-deletes the most recent dead pod so its controller
+	// recreates it. Lowest-risk action.
+	SelfHealDeletePod SelfHealAction = "DeletePod"
+	// SelfHealRestartWorkload triggers a rollout restart on the owning
+	// Deployment or StatefulSet via the standard restartedAt annotation.
+	SelfHealRestartWorkload SelfHealAction = "RestartWorkload"
+	// SelfHealBumpMemory multiplies the container's memory limit by
+	// SelfHealPolicy.MemoryFactor, capped by MemoryMaxLimit when set.
+	SelfHealBumpMemory SelfHealAction = "BumpMemory"
+	// SelfHealRollbackDeployment copies the prior ReplicaSet's pod template
+	// back onto the Deployment, undoing a recent rollout.
+	SelfHealRollbackDeployment SelfHealAction = "RollbackDeployment"
+)
+
+// SelfHealLLMPolicy lets a separate LLM decide which allowed action to take.
+// Independent of the narrator config so heal decisions can use a stronger
+// model than narration if desired. When Enabled is false the engine falls
+// back to the rule-based decider.
+type SelfHealLLMPolicy struct {
+	// enabled turns LLM-driven action selection on. Defaults to false.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+	// provider selects the LLM backend. One of "anthropic", "openai".
+	// +optional
+	Provider NarratorProvider `json:"provider,omitempty"`
+	// model is the model identifier passed to the provider.
+	// +optional
+	Model string `json:"model,omitempty"`
+	// apiKeySecretRef points to the Secret holding the provider API key.
+	// +optional
+	APIKeySecretRef *SecretKeyRef `json:"apiKeySecretRef,omitempty"`
+	// baseURL optionally overrides the provider's HTTPS endpoint.
+	// +optional
+	BaseURL string `json:"baseURL,omitempty"`
+}
+
+// SelfHealPolicy configures Koroner's optional remediation behaviour. Off by
+// default; when enabled, dryRun is on by default so operators must explicitly
+// opt in to real mutations.
+type SelfHealPolicy struct {
+	// enabled turns self-heal on. Defaults to false.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// dryRun records what would be done on the Obituary status without
+	// touching the cluster. Defaults to true when SelfHeal is enabled so the
+	// first enable is observable, not destructive.
+	// +optional
+	DryRun *bool `json:"dryRun,omitempty"`
+
+	// minOccurrences is the smallest occurrence count on an Obituary before
+	// self-heal will fire. Avoids reacting to one-off flakes. Defaults to 3.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MinOccurrences *int32 `json:"minOccurrences,omitempty"`
+
+	// requireHighConfidence gates self-heal on a High-confidence verdict.
+	// Defaults to true.
+	// +optional
+	RequireHighConfidence *bool `json:"requireHighConfidence,omitempty"`
+
+	// maxHealsPerHour caps total heal actions per namespace per hour to
+	// prevent runaway loops. Defaults to 5.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MaxHealsPerHour *int32 `json:"maxHealsPerHour,omitempty"`
+
+	// namespaceSelector limits which namespaces self-heal will act in. Empty
+	// matches everything (still subject to KoronerConfigSpec.NamespaceSelector).
+	// +optional
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+
+	// actions is the allowlist of remediations the decider may pick from.
+	// Defaults to all four actions when unset.
+	// +optional
+	Actions []SelfHealAction `json:"actions,omitempty"`
+
+	// memoryFactor is the multiplier applied to a container's memory limit
+	// when BumpMemory fires. Defaults to 1.5.
+	// +optional
+	MemoryFactor *string `json:"memoryFactor,omitempty"`
+
+	// memoryMaxLimit, when set, is the upper bound BumpMemory will not exceed
+	// (e.g. "8Gi"). Optional; no cap when unset.
+	// +optional
+	MemoryMaxLimit *string `json:"memoryMaxLimit,omitempty"`
+
+	// llm optionally configures an LLM-driven decider. When disabled or
+	// misconfigured the engine uses the rule-based map only.
+	// +optional
+	LLM SelfHealLLMPolicy `json:"llm,omitempty"`
+}
+
 // KoronerConfigSpec is the runtime policy for Koroner. A config named
 // "default" in the operator's namespace acts as the cluster-wide fallback;
 // per-namespace configs override it for their namespace.
@@ -138,6 +236,11 @@ type KoronerConfigSpec struct {
 	// narrator configures optional LLM-backed narrative generation.
 	// +optional
 	Narrator NarratorPolicy `json:"narrator,omitempty"`
+
+	// selfHeal configures optional remediation actions Koroner can take when
+	// it has diagnosed a recurring, high-confidence death. Off by default.
+	// +optional
+	SelfHeal SelfHealPolicy `json:"selfHeal,omitempty"`
 }
 
 // KoronerConfigStatus defines the observed state of KoronerConfig.

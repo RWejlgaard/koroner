@@ -167,6 +167,155 @@ spec:
                 format: int32
                 minimum: 1
                 type: integer
+              selfHeal:
+                description: |-
+                  selfHeal configures optional remediation actions Koroner can take when
+                  it has diagnosed a recurring, high-confidence death. Off by default.
+                properties:
+                  actions:
+                    description: |-
+                      actions is the allowlist of remediations the decider may pick from.
+                      Defaults to all four actions when unset.
+                    items:
+                      description: SelfHealAction names a remediation Koroner is allowed
+                        to perform.
+                      enum:
+                      - DeletePod
+                      - RestartWorkload
+                      - BumpMemory
+                      - RollbackDeployment
+                      type: string
+                    type: array
+                  dryRun:
+                    description: |-
+                      dryRun records what would be done on the Obituary status without
+                      touching the cluster. Defaults to true when SelfHeal is enabled so the
+                      first enable is observable, not destructive.
+                    type: boolean
+                  enabled:
+                    description: enabled turns self-heal on. Defaults to false.
+                    type: boolean
+                  llm:
+                    description: |-
+                      llm optionally configures an LLM-driven decider. When disabled or
+                      misconfigured the engine uses the rule-based map only.
+                    properties:
+                      apiKeySecretRef:
+                        description: apiKeySecretRef points to the Secret holding
+                          the provider API key.
+                        properties:
+                          key:
+                            description: |-
+                              key inside the Secret whose value is the API key. Defaults to
+                              "ANTHROPIC_API_KEY" or "OPENAI_API_KEY" depending on the provider.
+                            type: string
+                          name:
+                            description: name of the Secret holding the API key.
+                            type: string
+                          namespace:
+                            description: namespace of the Secret. Defaults to the
+                              namespace of the dead workload.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      baseURL:
+                        description: baseURL optionally overrides the provider's HTTPS
+                          endpoint.
+                        type: string
+                      enabled:
+                        description: enabled turns LLM-driven action selection on.
+                          Defaults to false.
+                        type: boolean
+                      model:
+                        description: model is the model identifier passed to the provider.
+                        type: string
+                      provider:
+                        description: provider selects the LLM backend. One of "anthropic",
+                          "openai".
+                        enum:
+                        - anthropic
+                        - openai
+                        type: string
+                    type: object
+                  maxHealsPerHour:
+                    description: |-
+                      maxHealsPerHour caps total heal actions per namespace per hour to
+                      prevent runaway loops. Defaults to 5.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  memoryFactor:
+                    description: |-
+                      memoryFactor is the multiplier applied to a container's memory limit
+                      when BumpMemory fires. Defaults to 1.5.
+                    type: string
+                  memoryMaxLimit:
+                    description: |-
+                      memoryMaxLimit, when set, is the upper bound BumpMemory will not exceed
+                      (e.g. "8Gi"). Optional; no cap when unset.
+                    type: string
+                  minOccurrences:
+                    description: |-
+                      minOccurrences is the smallest occurrence count on an Obituary before
+                      self-heal will fire. Avoids reacting to one-off flakes. Defaults to 3.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  namespaceSelector:
+                    description: |-
+                      namespaceSelector limits which namespaces self-heal will act in. Empty
+                      matches everything (still subject to KoronerConfigSpec.NamespaceSelector).
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  requireHighConfidence:
+                    description: |-
+                      requireHighConfidence gates self-heal on a High-confidence verdict.
+                      Defaults to true.
+                    type: boolean
+                type: object
               watch:
                 description: watch toggles which death classes are investigated.
                 properties:

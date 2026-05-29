@@ -34,6 +34,7 @@ import (
 
 	koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
 	"github.com/RWejlgaard/koroner/internal/forensics"
+	"github.com/RWejlgaard/koroner/internal/selfheal"
 )
 
 // episodeKeyLabel records the death-episode key on each Obituary so a given
@@ -275,4 +276,70 @@ func resolveNarrator(
 		return fallback
 	}
 	return n
+}
+
+// HealDeciderFactory returns a decider factory suitable for selfheal.Engine.
+// When the SelfHealLLMPolicy is enabled and its secret can be read, it chains
+// rule -> LLM (rule first because the rule map covers the common, predictable
+// causes faster than an HTTP call). Otherwise just the rule decider.
+func HealDeciderFactory(c client.Client) func(ctx context.Context, ns string, p koronerv1alpha1.SelfHealPolicy) selfheal.Decider {
+	return func(ctx context.Context, subjectNamespace string, p koronerv1alpha1.SelfHealPolicy) selfheal.Decider {
+		rule := selfheal.RuleDecider{}
+		llm := resolveSelfHealLLM(ctx, c, p.LLM, subjectNamespace)
+		if llm == nil {
+			return rule
+		}
+		return selfheal.CompositeDecider{Primary: rule, Fallback: llm}
+	}
+}
+
+// resolveSelfHealLLM materialises an LLM-backed Decider when the policy is
+// enabled and fully configured. Returns nil for any missing piece - the
+// engine then falls back to the rule decider, never silently failing.
+func resolveSelfHealLLM(
+	ctx context.Context,
+	c client.Client,
+	policy koronerv1alpha1.SelfHealLLMPolicy,
+	subjectNamespace string,
+) selfheal.Decider {
+	log := logf.FromContext(ctx)
+	if !policy.Enabled {
+		return nil
+	}
+	if policy.Provider == "" || policy.APIKeySecretRef == nil || policy.APIKeySecretRef.Name == "" {
+		log.V(1).Info("selfheal llm enabled but provider/secret missing; falling back to rule")
+		return nil
+	}
+	ref := policy.APIKeySecretRef
+	ns := ref.Namespace
+	if ns == "" {
+		ns = subjectNamespace
+	}
+	key := ref.Key
+	if key == "" {
+		key = forensics.DefaultSecretKey(policy.Provider)
+	}
+	if key == "" {
+		return nil
+	}
+	var secret corev1.Secret
+	if err := c.Get(ctx, client.ObjectKey{Namespace: ns, Name: ref.Name}, &secret); err != nil {
+		log.V(1).Info("selfheal llm: cannot read API key secret", "secret", ns+"/"+ref.Name, "error", err.Error())
+		return nil
+	}
+	apiKey := strings.TrimSpace(string(secret.Data[key]))
+	if apiKey == "" {
+		return nil
+	}
+	d, err := selfheal.NewLLMDecider(selfheal.LLMDeciderConfig{
+		Provider: policy.Provider,
+		Model:    policy.Model,
+		APIKey:   apiKey,
+		BaseURL:  policy.BaseURL,
+	})
+	if err != nil {
+		log.V(1).Info("selfheal llm: build failed", "error", err.Error())
+		return nil
+	}
+	return d
 }

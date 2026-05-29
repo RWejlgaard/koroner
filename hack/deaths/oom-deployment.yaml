@@ -1,0 +1,36 @@
+# A Deployment whose pod is guaranteed to be OOMKilled: a tiny memory limit
+# and a process that allocates far past it. Expect an Obituary with
+# causeOfDeath=OutOfMemory.
+#
+# Why a Deployment and not a bare Pod? Self-heal's BumpMemory action patches
+# the owning workload's pod template - it can't mutate an already-running
+# Pod's spec. With this Deployment subject, an enabled self-heal policy will
+# (after MinOccurrences is reached) bump the container's memory limit by
+# MemoryFactor and a new ReplicaSet will roll out with the larger limit.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koroner-oom
+  labels:
+    koroner.pez.sh/demo: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: koroner-oom
+  template:
+    metadata:
+      labels:
+        app: koroner-oom
+        koroner.pez.sh/demo: "true"
+    spec:
+      containers:
+        - name: hog
+          image: polinux/stress
+          resources:
+            limits:
+              memory: "16Mi"
+            requests:
+              memory: "16Mi"
+          command: ["stress"]
+          args: ["--vm", "1", "--vm-bytes", "20M", "--vm-hang", "0"]

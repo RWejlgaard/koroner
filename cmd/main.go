@@ -39,6 +39,7 @@ import (
 	koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
 	"github.com/RWejlgaard/koroner/internal/controller"
 	"github.com/RWejlgaard/koroner/internal/forensics"
+	"github.com/RWejlgaard/koroner/internal/selfheal"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -192,11 +193,19 @@ func main() {
 	narrator := forensics.NoopNarrator{} // phase-2 hook: swap for an LLM narrator
 	operatorNamespace := os.Getenv("POD_NAMESPACE")
 
+	// Single shared self-heal engine: its in-memory rate limiter only enforces
+	// the per-namespace cap correctly when one instance sees every action.
+	healEngine := selfheal.NewEngine(
+		mgr.GetClient(),
+		selfheal.WithDeciderFactory(controller.HealDeciderFactory(mgr.GetClient())),
+	)
+
 	if err := (&controller.PodReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
 		Collector:         collector,
 		Narrator:          narrator,
+		SelfHeal:          healEngine,
 		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "pod")
@@ -207,6 +216,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		Collector:         collector,
 		Narrator:          narrator,
+		SelfHeal:          healEngine,
 		OperatorNamespace: operatorNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "job")

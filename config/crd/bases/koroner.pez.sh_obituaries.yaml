@@ -200,11 +200,64 @@ spec:
                 description: firstSeen is when this issue was first observed.
                 format: date-time
                 type: string
+              healAttempts:
+                description: |-
+                  healAttempts is the audit trail of self-heal actions Koroner has
+                  considered or applied for this obituary. Empty when self-heal is
+                  disabled or has not yet acted.
+                items:
+                  description: HealRecord is one entry in an Obituary's self-heal
+                    audit trail.
+                  properties:
+                    action:
+                      description: action that was selected, e.g. "BumpMemory". Empty
+                        when Outcome=Skipped.
+                      enum:
+                      - DeletePod
+                      - RestartWorkload
+                      - BumpMemory
+                      - RollbackDeployment
+                      type: string
+                    decidedBy:
+                      description: |-
+                        decidedBy is "rule" or "llm" identifying the decider that picked the
+                        action.
+                      type: string
+                    detail:
+                      description: |-
+                        detail is a short human-readable description of what changed, e.g.
+                        "memory 512Mi -> 768Mi" or "rolled back to revision 4".
+                      type: string
+                    outcome:
+                      description: outcome is the result of the attempt.
+                      enum:
+                      - Applied
+                      - DryRun
+                      - Skipped
+                      - Failed
+                      type: string
+                    reason:
+                      description: |-
+                        reason explains why this action was chosen (rule-based label or LLM
+                        rationale), or why it was skipped/failed.
+                      type: string
+                    time:
+                      description: time the attempt was made.
+                      format: date-time
+                      type: string
+                  type: object
+                type: array
               lastEpisode:
                 description: |-
                   lastEpisode is an internal discriminator ("<podUID>/<restartCount>") for
                   the most recently counted death, so the same crash isn't counted twice
                   across reconciles.
+                type: string
+              lastHealAt:
+                description: |-
+                  lastHealAt is the time of the most recent self-heal attempt regardless
+                  of outcome. Useful for filtering recently-acted-on obituaries.
+                format: date-time
                 type: string
               lastPod:
                 description: |-

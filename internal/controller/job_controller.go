@@ -30,6 +30,7 @@ import (
 
 	koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
 	"github.com/RWejlgaard/koroner/internal/forensics"
+	"github.com/RWejlgaard/koroner/internal/selfheal"
 )
 
 // JobReconciler investigates failed batch Jobs and records Obituaries.
@@ -38,6 +39,7 @@ type JobReconciler struct {
 	Scheme            *runtime.Scheme
 	Collector         *forensics.Collector
 	Narrator          forensics.Narrator
+	SelfHeal          *selfheal.Engine
 	OperatorNamespace string
 }
 
@@ -108,7 +110,18 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		now:      metav1.Now(),
 		status:   status,
 	})
-	return ctrl.Result{}, err
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if r.SelfHeal != nil {
+		name := obituaryName(subject.Name, key)
+		var obit koronerv1alpha1.Obituary
+		if gerr := r.Get(ctx, client.ObjectKey{Namespace: subject.Namespace, Name: name}, &obit); gerr == nil {
+			r.SelfHeal.MaybeHeal(ctx, &obit, cfg)
+		}
+	}
+	return ctrl.Result{}, nil
 }
 
 // jobSubject groups a Job under its owning workload (e.g. a CronJob) when one

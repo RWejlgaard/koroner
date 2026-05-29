@@ -105,6 +105,46 @@ const (
 	ConfidenceHigh   Confidence = "High"
 )
 
+// HealOutcome is the result of a single self-heal attempt.
+// +kubebuilder:validation:Enum=Applied;DryRun;Skipped;Failed
+type HealOutcome string
+
+const (
+	// HealApplied means the action was executed against the cluster.
+	HealApplied HealOutcome = "Applied"
+	// HealDryRun means the action was selected and logged but not executed.
+	HealDryRun HealOutcome = "DryRun"
+	// HealSkipped means the decider found no applicable action.
+	HealSkipped HealOutcome = "Skipped"
+	// HealFailed means execution was attempted but errored.
+	HealFailed HealOutcome = "Failed"
+)
+
+// HealRecord is one entry in an Obituary's self-heal audit trail.
+type HealRecord struct {
+	// time the attempt was made.
+	// +optional
+	Time *metav1.Time `json:"time,omitempty"`
+	// action that was selected, e.g. "BumpMemory". Empty when Outcome=Skipped.
+	// +optional
+	Action SelfHealAction `json:"action,omitempty"`
+	// outcome is the result of the attempt.
+	// +optional
+	Outcome HealOutcome `json:"outcome,omitempty"`
+	// detail is a short human-readable description of what changed, e.g.
+	// "memory 512Mi -> 768Mi" or "rolled back to revision 4".
+	// +optional
+	Detail string `json:"detail,omitempty"`
+	// reason explains why this action was chosen (rule-based label or LLM
+	// rationale), or why it was skipped/failed.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// decidedBy is "rule" or "llm" identifying the decider that picked the
+	// action.
+	// +optional
+	DecidedBy string `json:"decidedBy,omitempty"`
+}
+
 // ObituaryPhase tracks the investigation lifecycle.
 // +kubebuilder:validation:Enum=Investigating;Complete;Failed
 type ObituaryPhase string
@@ -196,6 +236,17 @@ type ObituaryStatus struct {
 	// the LLM-backed Narrator.
 	// +optional
 	Narrative string `json:"narrative,omitempty"`
+
+	// healAttempts is the audit trail of self-heal actions Koroner has
+	// considered or applied for this obituary. Empty when self-heal is
+	// disabled or has not yet acted.
+	// +optional
+	HealAttempts []HealRecord `json:"healAttempts,omitempty"`
+
+	// lastHealAt is the time of the most recent self-heal attempt regardless
+	// of outcome. Useful for filtering recently-acted-on obituaries.
+	// +optional
+	LastHealAt *metav1.Time `json:"lastHealAt,omitempty"`
 
 	// conditions represent the current state of the Obituary resource.
 	// +listType=map
