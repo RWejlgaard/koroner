@@ -1,0 +1,16 @@
+apiVersion: v2
+name: koroner
+description: Koroner operator - performs post-mortems on failed workloads
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/RWejlgaard/koroner
+sources:
+  - https://github.com/RWejlgaard/koroner
+maintainers:
+  - name: RWejlgaard
+keywords:
+  - kubernetes
+  - operator
+  - observability
+  - post-mortem

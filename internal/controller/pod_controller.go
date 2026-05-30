@@ -52,7 +52,7 @@ type PodReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets;daemonsets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs;cronjobs,verbs=get;list;watch
-// +kubebuilder:rbac:groups=koroner.pez.sh,resources=koronerconfigs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=koroner.pez.sh,resources=koronerconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=koroner.pez.sh,resources=obituaries,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=koroner.pez.sh,resources=obituaries/status,verbs=get;update;patch
 

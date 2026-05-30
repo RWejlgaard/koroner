@@ -20,3 +20,40 @@ jobs:
 
       - name: go test
         run: make test
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.21.0
+
+      - name: Helm lint
+        run: helm lint charts/koroner
+
+      - name: Helm template (smoke)
+        run: helm template koroner charts/koroner > /dev/null
+
+      - name: Chart version guard
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          # Files that, when changed, require a Chart.yaml version bump
+          patterns='^charts/koroner/(Chart\.yaml|values\.yaml|templates/)'
+          if ! git diff --name-only "$base"...HEAD | grep -qE "$patterns"; then
+            echo "No chart changes — guard skipped."
+            exit 0
+          fi
+          echo "Chart changes detected — checking Chart.yaml version bump."
+          pr_version="$(grep -E '^version:' charts/koroner/Chart.yaml | awk '{print $2}')"
+          base_version="$(git show "$base":charts/koroner/Chart.yaml 2>/dev/null | grep -E '^version:' | awk '{print $2}' || true)"
+          echo "Base version: ${base_version:-<none>}"
+          echo "PR version:   ${pr_version}"
+          if [ "$pr_version" = "$base_version" ]; then
+            echo "::error::charts/koroner/Chart.yaml version must be bumped when chart contents change (still ${pr_version})."
+            exit 1
+          fi

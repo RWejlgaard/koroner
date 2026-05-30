@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
+	"github.com/RWejlgaard/koroner/internal/bootstrap"
 	"github.com/RWejlgaard/koroner/internal/controller"
 	"github.com/RWejlgaard/koroner/internal/forensics"
 	"github.com/RWejlgaard/koroner/internal/selfheal"
@@ -223,6 +224,15 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
+
+	if err := mgr.Add(&bootstrap.DefaultConfigSeeder{
+		Client:    mgr.GetClient(),
+		Cache:     mgr.GetCache(),
+		Namespace: operatorNamespace,
+	}); err != nil {
+		setupLog.Error(err, "Failed to register default config seeder")
+		os.Exit(1)
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "Failed to set up health check")
