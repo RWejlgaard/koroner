@@ -26,7 +26,7 @@ import koronerv1alpha1 "github.com/RWejlgaard/koroner/api/v1alpha1"
 //   - Deployment: full menu; rollback uses ReplicaSet history.
 //   - StatefulSet / DaemonSet: same pod-template patches as Deployment but
 //     no rollback (no ReplicaSet history; manual revisions are out of scope).
-//   - Pod (bare, no controller): only DeletePod — nothing to recreate it,
+//   - Pod (bare, no controller): only DeletePod - nothing to recreate it,
 //     but the user opted in, so respect their intent.
 //   - Job / CronJob: nothing safe; their pod templates are immutable
 //     post-creation and there is no useful "restart" semantics here.

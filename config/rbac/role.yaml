@@ -63,6 +63,7 @@ rules:
   resources:
   - koronerconfigs
   verbs:
+  - create
   - get
   - list
   - watch

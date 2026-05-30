@@ -1,0 +1,7 @@
+{{ include "koroner.fullname" . }} {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }}.
+
+Check the operator is running:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Create a KoronerConfig to start watching:
+  kubectl apply -f https://raw.githubusercontent.com/RWejlgaard/koroner/main/config/samples/koroner_v1alpha1_koronerconfig.yaml

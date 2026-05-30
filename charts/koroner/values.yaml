@@ -1,0 +1,70 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: rwejlgaard/koroner
+  pullPolicy: IfNotPresent
+  # Defaults to .Chart.AppVersion when empty
+  tag: ""
+
+imagePullSecrets: []
+
+replicas: 1
+
+leaderElection:
+  enabled: true
+
+healthProbe:
+  port: 8081
+
+metrics:
+  enabled: true
+  port: 8443
+  service:
+    type: ClusterIP
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+
+crds:
+  install: true
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+extraArgs: []
+extraEnv: []
