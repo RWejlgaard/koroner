@@ -81,6 +81,46 @@ overrides):
 Causes left blank are intentionally not auto-actioned for that kind (no useful fix
 available).
 
+## Install with Helm
+
+The chart is published as an OCI artifact on Docker Hub.
+
+```sh
+helm install koroner oci://registry-1.docker.io/rwejlgaard/koroner-chart \
+  --namespace koroner-system \
+  --create-namespace
+```
+
+Pin to a specific chart version with `--version 0.1.0`. List available versions:
+
+```sh
+helm show chart oci://registry-1.docker.io/rwejlgaard/koroner-chart
+```
+
+On first install with no `KoronerConfig` present, Koroner seeds a `default` one in
+its own namespace with the built-in policy - edit it in place to tune behaviour:
+
+```sh
+kubectl -n koroner-system edit koronerconfig default
+```
+
+Common overrides via `--set` or `-f values.yaml`:
+
+| Value                                 | Default              | Notes                                                  |
+| ------------------------------------- | -------------------- | ------------------------------------------------------ |
+| `image.tag`                           | chart `appVersion`   | Pin a specific operator build.                        |
+| `replicas`                            | `1`                  | HA needs `leaderElection.enabled: true` (default on). |
+| `crds.install`                        | `true`               | Set `false` if you manage CRDs out-of-band.           |
+| `metrics.serviceMonitor.enabled`      | `false`              | Turns on Prometheus Operator scraping.                |
+| `resources.*`                         | small request/limit  | Bump for busier clusters.                             |
+
+Upgrade and uninstall:
+
+```sh
+helm upgrade koroner oci://registry-1.docker.io/rwejlgaard/koroner-chart -n koroner-system
+helm uninstall koroner -n koroner-system   # CRDs are kept (helm.sh/resource-policy: keep)
+```
+
 ## Try it locally
 
 ```sh

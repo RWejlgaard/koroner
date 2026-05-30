@@ -123,7 +123,7 @@ jobs:
 
       - name: Helm push to Docker Hub OCI
         run: |
-          helm push dist/koroner-*.tgz oci://registry-1.docker.io/rwejlgaard
+          helm push dist/koroner-chart-*.tgz oci://registry-1.docker.io/rwejlgaard
 
   release:
     needs: [version, docker, chart]

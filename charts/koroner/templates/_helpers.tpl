@@ -1,6 +1,8 @@
-{{/* Expand the name of the chart. */}}
+{{/* Base name used for resources, labels and selectors. Hardcoded "koroner"
+     so the published artifact can be koroner-chart on Docker Hub without
+     leaking that into in-cluster object names. */}}
 {{- define "koroner.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- default "koroner" .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{- define "koroner.fullname" -}}
