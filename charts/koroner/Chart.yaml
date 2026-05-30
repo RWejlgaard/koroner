@@ -2,7 +2,7 @@ apiVersion: v2
 name: koroner-chart
 description: Koroner operator - performs post-mortems on failed workloads
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.0.2"
 home: https://github.com/RWejlgaard/koroner
 sources:
